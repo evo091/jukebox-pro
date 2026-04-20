@@ -1,16 +1,33 @@
-import express from "express";
-const router = express.Router();
-export default router;
+import express from 'express';
+const trackRouter = express.Router();
+import {
+    getTracks,
+    getTrackById,
+} from '#db/queries/tracks';
+import { getPlaylistsByTrackId } from '#db/queries/playlists';
+import requireUser from '#middleware/requireUser';
 
-import { getTracks, getTrackById } from "#db/queries/tracks";
-
-router.get("/", async (req, res) => {
-  const tracks = await getTracks();
-  res.send(tracks);
+trackRouter.get('/', async (req, res) => {
+    const tracks = await getTracks();
+    res.send(tracks);
 });
 
-router.get("/:id", async (req, res) => {
-  const track = await getTrackById(req.params.id);
-  if (!track) return res.status(404).send("Track not found.");
-  res.send(track);
+trackRouter.param('id', async (req, res, next, id) => {
+    const track = await getTrackById(id);
+    if (!track) {
+        return res.status(404).send('Track not found by that ID.');
+    }
+    req.track = track;
+    next();
 });
+
+trackRouter.get('/:id', (req, res) => {
+    res.send(req.track);
+});
+
+trackRouter.get('/:id/playlists', requireUser, async (req, res) => {
+    const playlists = await getPlaylistsByTrackId(req.track.id);
+    res.send(playlists);
+});
+
+export default trackRouter;
